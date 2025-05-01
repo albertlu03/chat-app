@@ -2,10 +2,24 @@ import { createApp } from "vue";
 import { GraffitiLocal } from "@graffiti-garden/implementation-local";
 import { GraffitiRemote } from "@graffiti-garden/implementation-remote";
 import { GraffitiPlugin } from "@graffiti-garden/wrapper-vue";
+import reactionbutton from './ReactionButton.js'; 
 
-createApp({
+const app = createApp({
+    components: {
+        reactionbutton,
+    },
     data() {
         return {
+            profile: {
+                name: "",
+                pronouns: "",
+                bio: "",
+                icon: "",
+            },
+            profileFile: null,
+            profileUrl: "",
+            editingProfile: false,
+            
             myMessage: "",
             sending: false,
             newChatName: "",
@@ -25,7 +39,14 @@ createApp({
                                 properties: {
                                     type: { const: 'Group Chat' },
                                     name: { type: 'string' },
-                                    channel: { type: 'string' }
+                                    channel: { type: 'string' },
+                                    reactions: {
+                                        type: 'object',
+                                        properties: {
+                                            heartCount: { type: 'number' },
+                                            userReacted: { type: 'boolean' }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -38,7 +59,14 @@ createApp({
                         required: ['content', 'published'],
                         properties: {
                             content: { type: 'string' },
-                            published: { type: 'number' }
+                            published: { type: 'number' },
+                            reactions: {
+                                type: 'object',
+                                properties: {
+                                    likeCount: { type: 'number' },
+                                    userReacted: { type: 'boolean' }
+                                }
+                            }
                         }
                     }
                 }
@@ -99,75 +127,66 @@ createApp({
                         }
                     }
                 }
-            }
+            },
+            profileSchema: {
+                properties: {
+                    value: {
+                        required: ['name', 'describes', 'published'],
+                        properties: {
+                            name: { type: 'string' },
+                            pronouns: { type: 'string' },
+                            bio: { type: 'string' },
+                            icon: { type: 'string' },
+                            describes: { type: 'string' },
+                            published: { type: 'number' }
+                        }
+                    }
+                }
+            },
         };
     },
 
     computed: {
         minScheduleTime() {
-            const now = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
-            const tzOffset = now.getTimezoneOffset() * 60000; // offset in ms
+            const now = new Date(Date.now() + 5 * 60 * 1000);
+            const tzOffset = now.getTimezoneOffset() * 60000;
             const localTime = new Date(now.getTime() - tzOffset);
             return localTime.toISOString().slice(0, 16);
         }
     },
-
     methods: {
         async sendMessage(session) {
             if (!this.myMessage) return;
 
-            if (this.scheduleEnabled) {
-                const publishTime = new Date(this.scheduledTime).getTime();
-                const now = Date.now();
-                const minDelayMs = 5 * 60 * 1000;
+            const messageObj = {
+                value: {
+                    content: this.myMessage,
+                    published: this.scheduleEnabled 
+                        ? new Date(this.scheduledTime).getTime()
+                        : Date.now(),
+                    scheduled: this.scheduleEnabled,
+                    reactions: {
+                        likeCount: 0,
+                        userReacted: false
+                    }
+                },
+                channels: [this.selectedChannel],
+            };
 
-                if (publishTime - now < minDelayMs) {
-                    alert('Scheduled time must be at least 5 minutes from now');
-                    return;
-                }
+            if (this.scheduleEnabled && messageObj.value.published - Date.now() < 300000) {
+                alert('Scheduled time must be at least 5 minutes from now');
+                return;
+            }
 
-                this.sending = true;
-
-                try {
-                    const messageObj = {
-                        value: {
-                            content: this.myMessage,
-                            published: publishTime,
-                            scheduled: true,
-                        },
-                        channels: [this.selectedChannel],
-                    };
-
-                    await this.$graffiti.put(messageObj, session);
-
-                    this.myMessage = '';
-                    this.scheduleEnabled = false;
-                    this.scheduledTime = '';
-                } finally {
-                    this.sending = false;
-                    this.$nextTick(() => this.$refs.messageInput?.focus());
-                }
-            } else {
-                // Immediate send
-                this.sending = true;
-
-                try {
-                    const messageObj = {
-                        value: {
-                            content: this.myMessage,
-                            published: Date.now(),
-                            scheduled: false,
-                        },
-                        channels: [this.selectedChannel],
-                    };
-
-                    await this.$graffiti.put(messageObj, session);
-
-                    this.myMessage = '';
-                } finally {
-                    this.sending = false;
-                    this.$nextTick(() => this.$refs.messageInput?.focus());
-                }
+            this.sending = true;
+            try {
+                await this.$graffiti.put(messageObj, session);
+                this.myMessage = '';
+                this.scheduleEnabled = false;
+                this.scheduledTime = '';
+            } finally {
+                this.sending = false;
+                this.$nextTick(() => this.$refs.messageInput?.focus());
             }
         },
 
@@ -180,7 +199,11 @@ createApp({
                     object: {
                         type: 'Group Chat',
                         name: this.newChatName,
-                        channel: crypto.randomUUID()
+                        channel: crypto.randomUUID(),
+                        reactions: {
+                            heartCount: 0,
+                            userReacted: false
+                        }
                     }
                 },
                 channels: ['designftw']
@@ -233,10 +256,84 @@ createApp({
             const minutes = Math.floor((diffSeconds % 3600) / 60);
             
             return `in ${hours}h ${minutes}m`;
+        },
+
+        async handleReaction(messageObject, emoji) {
+            try {
+                const currentReactions = messageObject.value.reactions || {
+                    likeCount: 0,
+                    userReacted: false
+                };
+                
+                const newReactions = {
+                    likeCount: currentReactions.userReacted 
+                        ? currentReactions.likeCount - 1 
+                        : currentReactions.likeCount + 1,
+                    userReacted: !currentReactions.userReacted
+                };
+
+                const op = messageObject.value.reactions ? 'replace' : 'add';
+
+                await this.$graffiti.patch({
+                    value: [{
+                        op,
+                        path: '/reactions',
+                        value: newReactions
+                    }]
+                }, messageObject, this.$graffitiSession.value);
+            } catch (error) {
+                console.error('Reaction update failed:', error);
+            }
+        },
+
+        async saveProfile() {
+            const actor = this.$graffitiSession.value.actor;
+            const profileObj = {
+                value: {
+                    name: this.profile.name,
+                    pronouns: this.profile.pronouns,
+                    bio: this.profile.bio,
+                    icon: this.profile.icon,
+                    describes: actor,
+                    published: Date.now()
+                },
+                channels: [actor]
+            };
+            await this.$graffiti.put(profileObj, this.$graffitiSession.value);
+            this.editingProfile = false;
+        },
+
+        async loadProfile() {
+            const actor = this.$graffitiSession.value.actor;
+            const { objects: profiles } = await this.$graffiti.discover({
+                channels: [actor],
+                schema: this.profileSchema
+            });
+            if (profiles && profiles.length > 0) {
+                profiles.sort((a, b) => b.value.published - a.value.published);
+                const latest = profiles[0].value;
+                this.profile = {
+                    name: latest.name || "",
+                    pronouns: latest.pronouns || "",
+                    bio: latest.bio || "",
+                    icon: latest.icon || ""
+                };
+                this.profileUrl = latest.icon || "";
+            }
         }
+
+
+        
     }
-})
-.use(GraffitiPlugin, {
+});
+
+app.directive('focus', {
+    mounted(el) {
+        el.focus();
+    }
+});
+
+app.use(GraffitiPlugin, {
     graffiti: new GraffitiLocal(),
     // graffiti: new GraffitiRemote(),
 })

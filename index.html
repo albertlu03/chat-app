@@ -10,7 +10,8 @@
                     "vue": "https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.esm-browser.js",
                     "@graffiti-garden/implementation-local": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-local@0.6.4/dist/browser/index.js",
                     "@graffiti-garden/implementation-remote": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-remote@0.6.2/dist/browser/index.js",
-                    "@graffiti-garden/wrapper-vue": "https://cdn.jsdelivr.net/npm/@graffiti-garden/wrapper-vue@0.7.2/dist/browser/plugin.mjs"
+                    "@graffiti-garden/wrapper-vue": "https://cdn.jsdelivr.net/npm/@graffiti-garden/wrapper-vue@0.7.2/dist/browser/plugin.mjs",
+                    "./ReactionButton.js": "./ReactionButton.js"
                 }
             }
         </script>
@@ -23,9 +24,45 @@
                 Log In
             </button>
             <template v-else>
-                <button @click="$graffiti.logout($graffitiSession.value)">
-                    Log Out
-                </button>
+
+                <button v-if="!$graffitiSession.value" @click="$graffiti.login()">Log In</button>
+                <template v-else>
+                    <button @click="$graffiti.logout($graffitiSession.value)">Log Out</button>
+                    <button @click="editingProfile = true">Edit Profile</button>
+
+                    <div v-if="editingProfile" class="profile-editor">
+                        <h2>Edit Profile</h2>
+                        <form @submit.prevent="saveProfile">
+                            <label>
+                                Name:
+                                <input v-model="profile.name" required />
+                            </label>
+                            <label>
+                                Pronouns:
+                                <input v-model="profile.pronouns" />
+                            </label>
+                            <label>
+                                Bio:
+                                <textarea v-model="profile.bio"></textarea>
+                            </label>
+                            <label>
+                                Profile Picture URL:
+                                <input type="url" v-model="profile.icon" placeholder="https://example.com/image.jpg" />
+                              </label>
+                            <button type="submit">Save</button>
+                            <button type="button" @click="editingProfile = false">Cancel</button>
+                        </form>
+                    </div>
+
+                    <div v-else class="profile-display">
+                        <h2>Your Profile</h2>
+                        <img v-if="profile.icon" :src="profile.icon" alt="Profile Picture" width="64" />
+                        <div><strong>{{ profile.name }}</strong> <span v-if="profile.pronouns">({{ profile.pronouns }})</span></div>
+                        <div>{{ profile.bio }}</div>
+                      </div>
+                      
+                </template>
+
                 
                 <div v-if="!selectedChannel">
                     <h2>Group Chats</h2>
@@ -102,6 +139,12 @@
                                         (you)</span
                                     ></strong
                                 >: {{ object.value.content }}
+                                <ReactionButton
+                                    :emoji="'👍'"
+                                    :count="object.value.reactions?.likeCount || 0"
+                                    :reacted="object.value.reactions?.userReacted || false"
+                                    @react="handleReaction(object, $event)"
+                                />
                                 <span v-if="object.value.published > Date.now()">
                                     ({{ formatFutureTime(object.value.published) }})
                                 </span>
