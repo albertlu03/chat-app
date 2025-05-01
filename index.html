@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Designftw Chatroom</title>
+        <script type="importmap">
+            {
+                "imports": {
+                    "vue": "https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.esm-browser.js",
+                    "@graffiti-garden/implementation-local": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-local@0.6.4/dist/browser/index.js",
+                    "@graffiti-garden/implementation-remote": "https://cdn.jsdelivr.net/npm/@graffiti-garden/implementation-remote@0.6.2/dist/browser/index.js",
+                    "@graffiti-garden/wrapper-vue": "https://cdn.jsdelivr.net/npm/@graffiti-garden/wrapper-vue@0.7.2/dist/browser/plugin.mjs"
+                }
+            }
+        </script>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <div id="app">
+            <h1>DesignFTW Chatroom</h1>
+            <button v-if="!$graffitiSession.value" @click="$graffiti.login()">
+                Log In
+            </button>
+            <template v-else>
+                <button @click="$graffiti.logout($graffitiSession.value)">
+                    Log Out
+                </button>
+                
+                <div v-if="!selectedChannel">
+                    <h2>Group Chats</h2>
+                    <form @submit.prevent="createGroupChat">
+                        <input v-model="newChatName" placeholder="New group name">
+                        <button type="submit">Create Group</button>
+                    </form>
+                    
+                    <graffiti-discover 
+                        v-slot="{ objects: groups }"
+                        :channels="['designftw']"
+                        :schema="groupSchema"
+                    >
+                        <div v-for="group in groups" :key="group.uri">
+                            <button @click="selectGroup(group.value.object)">
+                                {{ group.value.object.name }}
+                            </button>
+                        </div>
+                    </graffiti-discover>
+                </div>
+
+                <div v-else>
+                    <button @click="selectedChannel = null">← Back to Groups</button>
+                    <h2>{{ currentGroupName }}</h2>
+                    
+                    <form @submit.prevent="updateGroupName">
+                        <input v-model="groupNameEdit" placeholder="New group name">
+                        <button type="submit">Update Name</button>
+                    </form>
+                    
+                    <form @submit.prevent="sendMessage($graffitiSession.value)">
+                        <fieldset :disabled="sending">
+                            <input
+                                type="text"
+                                v-model="myMessage"
+                                placeholder="Message"
+                                ref="messageInput"
+                                v-focus
+                            />
+                            <div class="schedule-controls">
+                                <label>
+                                    <input type="checkbox" v-model="scheduleEnabled"> Schedule Message
+                                </label>
+                                <input 
+                                    v-if="scheduleEnabled"
+                                    type="datetime-local" 
+                                    v-model="scheduledTime"
+                                    :min="minScheduleTime"
+                                >
+                            </div>
+                            <input
+                                type="submit"
+                                :value="sending? 'Sending...' : 'Send'"
+                            />
+                        </fieldset>
+                    </form>
+
+                    <graffiti-discover
+                        v-slot="{ objects: messageObjects, isInitialPolling }"
+                        :channels="[selectedChannel]"
+                        :schema="messageSchema"
+                    >
+                        <ul>
+                            <li v-if="isInitialPolling">Loading...</li>
+                            <li
+                                v-for="object of messageObjects.sort((a, b) => b.value.published - a.value.published)"
+                                :key="object.url"
+                                :class="{ 'message-scheduled': object.value.published > Date.now() }"
+                            >
+                                <strong>
+                                    {{ object.actor }}<span
+                                        v-if="object.actor===$graffitiSession.value.actor"
+                                    >
+                                        (you)</span
+                                    ></strong
+                                >: {{ object.value.content }}
+                                <span v-if="object.value.published > Date.now()">
+                                    ({{ formatFutureTime(object.value.published) }})
+                                </span>
+                                <button 
+                                    v-if="object.actor===$graffitiSession.value.actor"
+                                    @click="editMessage(object)"
+                                >Edit</button>
+                                <button 
+                                    v-if="object.actor===$graffitiSession.value.actor"
+                                    @click="deleteMessage(object)"
+                                >Delete</button>
+                            </li>
+                        </ul>
+                    </graffiti-discover>
+
+                    <graffiti-discover
+                        v-slot="{ objects: nameObjects }"
+                        :channels="[selectedChannel]"
+                        :schema="nameUpdateSchema"
+                    >
+                        <div v-for="nameObj in nameObjects" :key="nameObj.uri">
+                            {{ currentGroupName = nameObj.value.name }}
+                        </div>
+                    </graffiti-discover>
+                </div>
+            </template>
+        </div>
+
+        <script src="index.js" type="module"></script>
+    </body>
+</html>

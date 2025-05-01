@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Writeup</title>
+</head>
+<body>
+    <header>
+        <h1>Writeup and Design Decisions</h1>
+
+        In my chat app, I made the design decisions for group chats to be user created, as we did in studio. Therefore the channel is created randomly (no changes here). 
+        I've decided on the functionality where users can invite other users to the group chat, and any user can leave a group chat as well. Therefore I've created several schemas, such as
+        the memberSchema, inviteSchema and leaveSchema, which I will use in the actual implementation of the group chat member managing system later.
+
+        In addition, I added a core functionality related to my prototypes from hw8 and hw9. This is the scheduling feature, where users can schedule messages in advance to be sent. 
+        There is a requirement that the message that a person is scheduling is at least 5 minutes out from the current time - otherwise there wouldn't be much point to scheduling the message.
+        I also added very basic CSS to the website. With respect to the usability goals, mistakes can be edited easily and deleted. In addition the names make sense for interactions make 
+        sense and are understandable. The interface feels fairly consistent with other chat apps I've used as well. 
+
+    </header>
+</body>
+</html>
