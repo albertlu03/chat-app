@@ -148,6 +148,8 @@
                                 <span v-if="object.value.published > Date.now()">
                                     ({{ formatFutureTime(object.value.published) }})
                                 </span>
+                                <div>{{object.actor }} {{graffitiSession.value.actor}}</div>
+                                
                                 <button 
                                     v-if="object.actor===$graffitiSession.value.actor"
                                     @click="editMessage(object)"

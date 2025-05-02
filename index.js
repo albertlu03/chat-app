@@ -296,9 +296,9 @@ const app = createApp({
                     icon: this.profile.icon,
                     describes: actor,
                     published: Date.now(),
-                    generator: "https://albertlu03.github.io/chat-app/",
+                    // generator: "https://albertlu03.github.io/chat-app/",
                 },
-                channels: [actor, "designftw-2025-studio2"]
+                channels: [actor]
             };
             await this.$graffiti.put(profileObj, this.$graffitiSession.value);
             this.editingProfile = false;
@@ -335,7 +335,7 @@ app.directive('focus', {
 });
 
 app.use(GraffitiPlugin, {
-    //graffiti: new GraffitiLocal(),
-    graffiti: new GraffitiRemote(),
+    graffiti: new GraffitiLocal(),
+    // graffiti: new GraffitiRemote(),
 })
 .mount("#app");
