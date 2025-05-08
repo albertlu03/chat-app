@@ -29,7 +29,8 @@
                 <template v-else>
                     <button @click="$graffiti.logout($graffitiSession.value)">Log Out</button>
                     <button @click="editingProfile = true">Edit Profile</button>
-
+                    
+                    <transition name="fade">
                     <div v-if="editingProfile" class="profile-editor">
                         <h2>Edit Profile</h2>
                         <form @submit.prevent="saveProfile">
@@ -53,6 +54,7 @@
                             <button type="button" @click="editingProfile = false">Cancel</button>
                         </form>
                     </div>
+                   
 
                     <div v-else class="profile-display">
                         <h2>Your Profile</h2>
@@ -60,7 +62,7 @@
                         <div><strong>{{ profile.name }}</strong> <span v-if="profile.pronouns">({{ profile.pronouns }})</span></div>
                         <div>{{ profile.bio }}</div>
                       </div>
-                      
+                    </transition>
                 </template>
 
                 
@@ -71,16 +73,18 @@
                         <button type="submit">Create Group</button>
                     </form>
                     
-                    <graffiti-discover autopoll
+                    <graffiti-discover
                         v-slot="{ objects: groups }"
                         :channels="['designftw']"
                         :schema="groupSchema"
                     >
-                        <div v-for="group in groups" :key="group.uri">
+                    <transition-group name="group" tag="div">
+                        <div v-for="group in groups" :key="group.url">
                             <button @click="selectGroup(group.value.object)">
                                 {{ group.value.object.name }}
                             </button>
                         </div>
+                    </transition-group>
                     </graffiti-discover>
                 </div>
 
@@ -120,12 +124,13 @@
                         </fieldset>
                     </form>
 
-                    <graffiti-discover autopoll
+                    <graffiti-discover
                         v-slot="{ objects: messageObjects, isInitialPolling }"
                         :channels="[selectedChannel]"
                         :schema="messageSchema"
                     >
-                        <ul>
+
+                        <transition-group name="msg" tag="ul">
                             <li v-if="isInitialPolling">Loading...</li>
                             <li
                                 v-for="object of messageObjects.sort((a, b) => b.value.published - a.value.published)"
@@ -133,7 +138,7 @@
                                 :class="{ 'message-scheduled': object.value.published > Date.now() }"
                             >
                                 <strong>
-                                    {{ object.actor }}<span
+                                    {{ object.actor }}, {{ $graffitiSession.value }}<span
                                         v-if="object.actor===$graffitiSession.value.actor"
                                     >
                                         (you)</span
@@ -148,7 +153,6 @@
                                 <span v-if="object.value.published > Date.now()">
                                     ({{ formatFutureTime(object.value.published) }})
                                 </span>
-                                <div>{{object.actor }} {{graffitiSession.value.actor}}</div>
                                 
                                 <button 
                                     v-if="object.actor===$graffitiSession.value.actor"
@@ -159,7 +163,7 @@
                                     @click="deleteMessage(object)"
                                 >Delete</button>
                             </li>
-                        </ul>
+                        </transition-group>
                     </graffiti-discover>
 
                     <graffiti-discover

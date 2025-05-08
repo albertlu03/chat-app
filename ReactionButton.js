@@ -3,8 +3,8 @@ export default {
         <div class="reaction-container">
             <button 
                 class="reaction-btn"
-                :class="{ 'reacted': reacted }"
-                @click="toggleReaction"
+                :class="{ 'reacted': reacted, 'bounce': isBouncing }"
+                @click="handleClick"
             >
                 <span class="emoji">{{ emoji }}</span>
                 <span v-if="count > 0" class="count">{{ count }}</span>
@@ -17,8 +17,18 @@ export default {
         reacted: { type: Boolean, default: false }
     },
     emits: ['react'],
+    data() {
+        return {
+            isBouncing: false
+        };
+    },
     methods: {
-        toggleReaction() {
+        handleClick() {
+            this.isBouncing = false;
+            this.$nextTick(() => {
+                this.isBouncing = true;
+                setTimeout(() => (this.isBouncing = false), 300);
+            });
             this.$emit('react', this.emoji);
         }
     }

@@ -82,52 +82,6 @@ const app = createApp({
                     }
                 }
             },
-            memberSchema: {
-                properties: {
-                    value: {
-                        required: ['activity', 'target'],
-                        properties: {
-                            activity: { const: 'Join' },
-                            target: { type: 'string' }
-                        }
-                    }
-                }
-            },
-            inviteSchema: {
-                properties: {
-                    value: {
-                        required: ['activity', 'object', 'target'],
-                        properties: {
-                            activity: { const: 'Invite' },
-                            object: { type: 'string' },
-                            target: { type: 'string' }
-                        }
-                    }
-                }
-            },
-            removeSchema: {
-                properties: {
-                    value: {
-                        required: ['activity', 'object', 'target'],
-                        properties: {
-                            activity: { const: 'Remove' },
-                            object: { type: 'string' },
-                            target: { type: 'string' }
-                        }
-                    }
-                }
-            },
-            leaveSchema: {
-                properties: {
-                    value: {
-                        required: ['activity', 'target'],
-                        properties: {
-                            activity: { const: 'Leave' },
-                            target: { type: 'string' }
-                        }
-                    }
-                }
-            },
             profileSchema: {
                 properties: {
                     value: {
