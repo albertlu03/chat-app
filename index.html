@@ -85,7 +85,7 @@
                             </button>
                         </div>
                     </transition-group>
-                    </graffiti-discover>
+                    </graffiti-disc over>
                 </div>
 
                 <div v-else>
@@ -142,8 +142,8 @@
                             <div class="message-main">
                                 <div>
                                 <strong>
-                                    {{ object.actor }}
-                                    <span v-if="object.actor===$graffitiSession.value.actor">(you) :</span>
+                                    <span v-if="object.actor===$graffitiSession.value.actor">{{ object.actor }} (you):</span>
+                                    <span v-else>{{ object.actor }}:</span>
                                 </strong>
                                 {{ object.value.content }}
                                 <span v-if="object.value.published > Date.now()">
