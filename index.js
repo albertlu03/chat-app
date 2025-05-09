@@ -188,7 +188,7 @@ const app = createApp({
                 await this.$graffiti.patch({
                     value: [{
                         op: 'replace',
-                        path: '/value/content',
+                        path: '/content',
                         value: newContent
                     }]
                 }, message, this.$graffitiSession.value);
@@ -275,6 +275,16 @@ const app = createApp({
                 };
                 this.profileUrl = latest.icon || "";
             }
+        },
+
+        formatDate(time) {
+            let date = new Date(time);
+            return date.toISOString();
+        },
+        
+        formatTime(time) {
+            let date = new Date(time);
+            return date.getHours()+":"+date.getMinutes();
         }
 
 
