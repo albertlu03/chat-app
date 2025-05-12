@@ -108,17 +108,48 @@
                                 style="resize: vertical; width: 100%;"
                             ></textarea>
 
-                            <div class="schedule-controls">
-                                <label>
-                                    <input type="checkbox" v-model="scheduleEnabled"> Schedule Message
-                                </label>
-                                <input 
-                                    v-if="scheduleEnabled"
-                                    type="datetime-local" 
-                                    v-model="scheduledTime"
-                                    :min="minScheduleTime"
-                                >
+                           <div class="schedule-controls">
+                        <label>
+                            <input type="checkbox" v-model="scheduleEnabled"> Schedule Message
+                        </label>
+                        <div v-if="scheduleEnabled" class="recurring-controls">
+                            <label>
+                            Start Time:
+                            <input 
+                                type="datetime-local" 
+                                v-model="recurring.start"
+                                :min="minScheduleTime"
+                                required
+                            >
+                            </label>
+                            <label>
+                            Repeat:
+                            <select v-model="recurring.frequency">
+                                <option value="none">Once</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                            </label>
+                            <label v-if="recurring.frequency !== 'none'">
+                            End Time:
+                            <input 
+                                type="datetime-local" 
+                                v-model="recurring.end"
+                                :min="recurring.start"
+                                :max="maxRecurringEnd"
+                                required
+                            >
+                            </label>
+                            <div v-if="recurring.frequency !== 'none' && recurringPreview.length">
+                            <strong>Preview:</strong>
+                            <ul>
+                                <li v-for="(dt, i) in recurringPreview" :key="i">{{ formatDate(dt) }}</li>
+                            </ul>
                             </div>
+                        </div>
+                        </div>
+
                             <input
                                 type="submit"
                                 :value="sending? 'Sending...' : 'Send'"

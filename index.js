@@ -19,6 +19,12 @@ const app = createApp({
             profileFile: null,
             profileUrl: "",
             editingProfile: false,
+            recurring: {
+            start: "",
+            end: "",
+            frequency: "none", // 'none', 'daily', 'weekly', 'monthly'
+            },
+
             
             myMessage: "",
             sending: false,
@@ -112,37 +118,91 @@ const app = createApp({
         async sendMessage(session) {
             if (!this.myMessage) return;
 
+            if (this.scheduleEnabled && this.recurring.frequency !== "none") {
+                const start = new Date(this.recurring.start).getTime();
+                const end = this.recurring.end ? new Date(this.recurring.end).getTime() : start;
+                let current = start;
+                const times = [];
+                while (current <= end && times.length < 366) {
+                times.push(current);
+                switch (this.recurring.frequency) {
+                    case "daily": current += 24 * 60 * 60 * 1000; break;
+                    case "weekly": current += 7 * 24 * 60 * 60 * 1000; break;
+                    case "monthly": {
+                    const d = new Date(current);
+                    d.setMonth(d.getMonth() + 1);
+                    current = d.getTime();
+                    break;
+                    }
+                    default: break;
+                }
+                }
+                const now = Date.now();
+                if (times.some((t) => t - now < 5 * 60 * 1000)) {
+                alert("All scheduled times must be at least 5 minutes from now");
+                return;
+                }
+                this.sending = true;
+                try {
+                for (const t of times) {
+                    const messageObj = {
+                    value: {
+                        content: this.myMessage,
+                        published: t,
+                        scheduled: true,
+                        reactions: {
+                        likeCount: 0,
+                        userReacted: false,
+                        },
+                    },
+                    channels: [this.selectedChannel],
+                    };
+                    await this.$graffiti.put(messageObj, session);
+                }
+                this.myMessage = "";
+                this.scheduleEnabled = false;
+                this.recurring = { start: "", end: "", frequency: "none" };
+                } finally {
+                this.sending = false;
+                this.$nextTick(() => this.$refs.messageInput?.focus());
+                }
+                return;
+            }
+
             const messageObj = {
                 value: {
-                    content: this.myMessage,
-                    published: this.scheduleEnabled 
-                        ? new Date(this.scheduledTime).getTime()
-                        : Date.now(),
-                    scheduled: this.scheduleEnabled,
-                    reactions: {
-                        likeCount: 0,
-                        userReacted: false
-                    }
+                content: this.myMessage,
+                published: this.scheduleEnabled
+                    ? new Date(this.recurring.start).getTime()
+                    : Date.now(),
+                scheduled: this.scheduleEnabled,
+                reactions: {
+                    likeCount: 0,
+                    userReacted: false,
+                },
                 },
                 channels: [this.selectedChannel],
             };
 
-            if (this.scheduleEnabled && messageObj.value.published - Date.now() < 300000) {
-                alert('Scheduled time must be at least 5 minutes from now');
+            if (
+                this.scheduleEnabled &&
+                messageObj.value.published - Date.now() < 5 * 60 * 1000
+            ) {
+                alert("Scheduled time must be at least 5 minutes from now");
                 return;
             }
-
             this.sending = true;
             try {
                 await this.$graffiti.put(messageObj, session);
-                this.myMessage = '';
+                this.myMessage = "";
                 this.scheduleEnabled = false;
-                this.scheduledTime = '';
+                this.recurring = { start: "", end: "", frequency: "none" };
             } finally {
                 this.sending = false;
                 this.$nextTick(() => this.$refs.messageInput?.focus());
             }
         },
+
 
         async createGroupChat() {
             if (!this.newChatName) return;
@@ -285,10 +345,41 @@ const app = createApp({
         formatTime(time) {
             let date = new Date(time);
             return date.getHours()+":"+date.getMinutes();
-        }
+        },
 
+        maxRecurringEnd() {
+            if (!this.recurring.start) return "";
+            const start = new Date(this.recurring.start);
+            start.setFullYear(start.getFullYear() + 1);
+            return start.toISOString().slice(0, 16);
+        },
+        recurringPreview() {
+            if (!this.scheduleEnabled || this.recurring.frequency === 'none' || !this.recurring.start) return [];
+            const preview = [];
+            let current = new Date(this.recurring.start).getTime();
+            const end = this.recurring.end ? new Date(this.recurring.end).getTime() : current;
+            let count = 0;
+            while (current <= end && count < 10) {
+                preview.push(current);
+                switch (this.recurring.frequency) {
+                case 'daily': current += 24 * 60 * 60 * 1000; break;
+                case 'weekly': current += 7 * 24 * 60 * 60 * 1000; break;
+                case 'monthly': {
+                    const d = new Date(current);
+                    d.setMonth(d.getMonth() + 1);
+                    current = d.getTime();
+                    break;
+                }
+                default: break;
+                }
+                count++;
+            }
+            return preview;
+        },
 
-        
+        formatDate(ts) {
+            return new Date(ts).toLocaleString();
+        },
     }
 });
 
@@ -299,7 +390,7 @@ app.directive('focus', {
 });
 
 app.use(GraffitiPlugin, {
-    //graffiti: new GraffitiLocal(),
-    graffiti: new GraffitiRemote(),
+    graffiti: new GraffitiLocal(),
+    //graffiti: new GraffitiRemote(),
 })
 .mount("#app");
