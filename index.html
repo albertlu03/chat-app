@@ -80,23 +80,21 @@
                     >
                     <transition-group name="group" tag="div">
                         <div v-for="group in groups" :key="group.url">
-                            <button @click="selectGroup(group.value.object)">
+                            <button @click="selectGroup(group)">
                                 {{ group.value.object.name }}
                             </button>
                         </div>
                     </transition-group>
-                    </graffiti-disc over>
+                    </graffiti-discover>
                 </div>
 
                 <div v-else>
                     <button @click="selectedChannel = null">← Back to Groups</button>
                     <h2>{{ currentGroupName }}</h2>
-                    
                     <form @submit.prevent="updateGroupName">
                         <input v-model="groupNameEdit" placeholder="New group name">
                         <button type="submit">Update Name</button>
                     </form>
-                    
                     <form @submit.prevent="sendMessage($graffitiSession.value)">
                         <fieldset :disabled="sending">
                             <textarea
@@ -157,6 +155,12 @@
                         </fieldset>
                     </form>
 
+
+                    <graffiti-discover
+                    v-slot="{ objects: reactionObjects }"
+                    :channels="[selectedChannel]"
+                    :schema="reactionSchema"
+                    >
                     <graffiti-discover
                         v-slot="{ objects: messageObjects, isInitialPolling }"
                         :channels="[selectedChannel]"
@@ -194,9 +198,9 @@
                                     >Delete</button>
                                     <ReactionButton
                                         :emoji="'👍'"
-                                        :count="object.value.reactions?.likeCount || 0"
-                                        :reacted="object.value.reactions?.userReacted || false"
-                                        @react="handleReaction(object, $event)"
+                                        :count="reactionObjects.filter(r => r.value.messageUrl === object.url).length || 0"
+                                        :reacted="reactionObjects.some(r => r.value.messageUrl === object.url && r.actor === $graffitiSession.value.actor)"
+                                        @react="handleReaction(object, reactionObjects)"
                                     />
                                 
                                 </div>
@@ -205,15 +209,6 @@
 
                         </transition-group>
                     </graffiti-discover>
-
-                    <graffiti-discover
-                        v-slot="{ objects: nameObjects }"
-                        :channels="[selectedChannel]"
-                        :schema="nameUpdateSchema"
-                    >
-                        <div v-for="nameObj in nameObjects" :key="nameObj.uri">
-                            {{ currentGroupName = nameObj.value.name }}
-                        </div>
                     </graffiti-discover>
                 </div>
             </template>

@@ -25,7 +25,7 @@ const app = createApp({
             frequency: "none", // 'none', 'daily', 'weekly', 'monthly'
             },
 
-            
+            currentGroup:null,
             myMessage: "",
             sending: false,
             newChatName: "",
@@ -46,13 +46,6 @@ const app = createApp({
                                     type: { const: 'Group Chat' },
                                     name: { type: 'string' },
                                     channel: { type: 'string' },
-                                    reactions: {
-                                        type: 'object',
-                                        properties: {
-                                            heartCount: { type: 'number' },
-                                            userReacted: { type: 'boolean' }
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -66,13 +59,6 @@ const app = createApp({
                         properties: {
                             content: { type: 'string' },
                             published: { type: 'number' },
-                            reactions: {
-                                type: 'object',
-                                properties: {
-                                    likeCount: { type: 'number' },
-                                    userReacted: { type: 'boolean' }
-                                }
-                            }
                         }
                     }
                 }
@@ -99,6 +85,16 @@ const app = createApp({
                             icon: { type: 'string' },
                             describes: { type: 'string' },
                             published: { type: 'number' }
+                        }
+                    }
+                }
+            },
+            reactionSchema: {
+                properties: {
+                    value: {
+                        required: ['messageUrl'],
+                        properties: {
+                            messageUrl: {type: 'string'}
                         }
                     }
                 }
@@ -150,10 +146,6 @@ const app = createApp({
                         content: this.myMessage,
                         published: t,
                         scheduled: true,
-                        reactions: {
-                        likeCount: 0,
-                        userReacted: false,
-                        },
                     },
                     channels: [this.selectedChannel],
                     };
@@ -176,10 +168,6 @@ const app = createApp({
                     ? new Date(this.recurring.start).getTime()
                     : Date.now(),
                 scheduled: this.scheduleEnabled,
-                reactions: {
-                    likeCount: 0,
-                    userReacted: false,
-                },
                 },
                 channels: [this.selectedChannel],
             };
@@ -214,10 +202,6 @@ const app = createApp({
                         type: 'Group Chat',
                         name: this.newChatName,
                         channel: crypto.randomUUID(),
-                        reactions: {
-                            heartCount: 0,
-                            userReacted: false
-                        }
                     }
                 },
                 channels: ['designftw']
@@ -227,19 +211,23 @@ const app = createApp({
         },
 
         selectGroup(group) {
-            this.selectedChannel = group.channel;
-            this.currentGroupName = group.name;
-            this.groupNameEdit = group.name;
+            let x = group.value.object;
+            this.selectedChannel = x.channel;
+            this.currentGroupName = x.name;
+            this.groupNameEdit = x.name;
+            this.currentGroup = group;
         },
 
         async updateGroupName() {
-            await this.$graffiti.put({
-                value: {
-                    name: this.groupNameEdit,
-                    describes: this.selectedChannel
-                },
-                channels: [this.selectedChannel]
-            }, this.$graffitiSession.value);
+            await this.$graffiti.patch({
+                value: [{
+                    op: 'replace',
+                    path: '/object/name',
+                    value: this.groupNameEdit
+                }]
+                
+            }, this.currentGroup, this.$graffitiSession.value);
+            this.currentGroupName = this.groupNameEdit;
         },
 
         async editMessage(message) {
@@ -272,31 +260,20 @@ const app = createApp({
             return `in ${hours}h ${minutes}m`;
         },
 
-        async handleReaction(messageObject, emoji) {
-            try {
-                const currentReactions = messageObject.value.reactions || {
-                    likeCount: 0,
-                    userReacted: false
-                };
-                
-                const newReactions = {
-                    likeCount: currentReactions.userReacted 
-                        ? currentReactions.likeCount - 1 
-                        : currentReactions.likeCount + 1,
-                    userReacted: !currentReactions.userReacted
-                };
-
-                const op = messageObject.value.reactions ? 'replace' : 'add';
-
-                await this.$graffiti.patch({
-                    value: [{
-                        op,
-                        path: '/reactions',
-                        value: newReactions
-                    }]
-                }, messageObject, this.$graffitiSession.value);
-            } catch (error) {
-                console.error('Reaction update failed:', error);
+        async handleReaction(message, reactionObjects) {
+            const myReaction = reactionObjects.find(
+            r => r.value.messageUrl === message.url && r.actor === this.$graffitiSession.value.actor
+            );
+            if (myReaction) {
+                await this.$graffiti.delete(myReaction.url, this.$graffitiSession.value);
+            } else {
+                const reactionObj = {
+                    value : {
+                        messageUrl: message.url,
+                    },
+                    channels : [this.selectedChannel]
+                }
+                await this.$graffiti.put(reactionObj, this.$graffitiSession.value);
             }
         },
 
